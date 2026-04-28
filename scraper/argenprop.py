@@ -29,12 +29,13 @@ HEADERS = {
 
 
 def _list_url(barrio_slug: str, page: int) -> str:
-    """Argenprop URL pattern, parametrized by barrio + page."""
+    """Argenprop URL pattern, ordenado por más nuevos primero.
+    Ej: https://www.argenprop.com/departamentos/venta/caballito?orden-masnuevos
+    """
     base = (f"{BASE}/departamentos/venta/{barrio_slug}/{TARGET_AMBIENTES}-ambientes/"
             f"dolares-desde-{PRICE_USD_MIN}-hasta-{PRICE_USD_MAX}")
-    if page <= 1:
-        return base
-    return f"{base}?pagina-{page}"
+    qs = "orden-masnuevos" if page <= 1 else f"pagina-{page}&orden-masnuevos"
+    return f"{base}?{qs}"
 
 
 def _parse_card(card) -> Listing | None:
