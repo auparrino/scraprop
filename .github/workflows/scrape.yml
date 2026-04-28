@@ -38,9 +38,10 @@ jobs:
         run: |
           set -e
           if [ -d state ]; then
-            mkdir -p code/data code/viewer code/reports code/logs
-            cp -r state/data/.   code/data/    2>/dev/null || true
-            cp -r state/viewer/. code/viewer/  2>/dev/null || true
+            mkdir -p code/data code/reports
+            # Sólo restauramos la DB y reportes. El index.html del viewer siempre
+            # viene de main (fresco) — sólo lo enriquecemos con datos en el step siguiente.
+            cp -r state/data/.    code/data/    2>/dev/null || true
             cp -r state/reports/. code/reports/ 2>/dev/null || true
           fi
         shell: bash
