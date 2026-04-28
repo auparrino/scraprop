@@ -10,7 +10,7 @@ from curl_cffi import requests as cffi_requests
 
 from .common import (
     Listing, detect_barrio, detect_antiguedad, detect_orientacion,
-    parse_int, matches_filters,
+    parse_int, matches_filters, proxy_wrap,
     PRICE_USD_MIN, PRICE_USD_MAX, TARGET_AMBIENTES,
 )
 
@@ -122,9 +122,10 @@ def _parse_card(card) -> Listing | None:
 def _fetch(url: str, session, retries: int = 4) -> str | None:
     """Fetch with Chrome TLS impersonation. Argenprop screens data-center IPs with HTTP 202
     (a soft challenge); curl_cffi + browser-like fingerprint clears it most of the time."""
+    fetch_url = proxy_wrap(url)
     for attempt in range(1, retries + 1):
         try:
-            r = session.get(url, impersonate="chrome", timeout=30)
+            r = session.get(fetch_url, impersonate="chrome", timeout=60)
             if r.status_code == 200:
                 return r.text
             log.warning("argenprop %s -> HTTP %s (attempt %s)", url, r.status_code, attempt)

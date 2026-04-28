@@ -2,10 +2,23 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import unicodedata
+import urllib.parse
 from dataclasses import dataclass, asdict, field
 from typing import Optional
+
+
+def proxy_wrap(url: str) -> str:
+    """If SCRAPER_API_KEY is set, route the request via ScraperAPI with AR residential IPs.
+    Otherwise return the URL unchanged."""
+    key = os.environ.get("SCRAPER_API_KEY")
+    if not key:
+        return url
+    return ("https://api.scraperapi.com/"
+            f"?api_key={key}&country_code=ar&keep_headers=true"
+            f"&url={urllib.parse.quote(url, safe='')}")
 
 
 # Filter constants — single source of truth

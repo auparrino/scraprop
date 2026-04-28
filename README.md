@@ -80,6 +80,23 @@ Ya viene incluido `.github/workflows/scrape.yml`. Hace todo lo siguiente automá
 - Pushea el nuevo estado a la rama `data` (la DB no rompe nada estando ahí).
 - Publica el visor (`viewer/`) en GitHub Pages.
 
+### ⚠ Limitación con IPs de data center
+
+Los runners de GitHub Actions usan IPs de data center que **ambos sitios bloquean**:
+- Argenprop devuelve `HTTP 202` (anti-bot screen)
+- Zonaprop devuelve `HTTP 403` (Cloudflare)
+
+Solución: rutear los requests por **ScraperAPI** (free tier 5.000 reqs/mes), que asigna una IP residencial argentina y pasa los dos sitios.
+
+1. Andá a https://www.scraperapi.com/, hacé sign-up con email (no requiere tarjeta).
+2. Copiá tu API key del dashboard.
+3. En el repo de GitHub: **Settings → Secrets and variables → Actions → New repository secret**.
+   - Name: `SCRAPER_API_KEY`
+   - Value: (pegá la key)
+4. Listo — el workflow detecta la presencia del secret y rutea automáticamente. Sin secret corre directo (útil sólo en tu PC).
+
+El workflow corre con `--max-pages 3` por sitio para no consumir más de ~84 reqs/día (~2.500/mes), bien dentro de los 5.000 free.
+
 ### Pasos para subirlo
 
 ```powershell
