@@ -1,0 +1,96 @@
+name: scrape-hourly
+
+on:
+  # Cron en UTC. ART = UTC-3, entonces 7:00-20:00 ART = 10:00-23:00 UTC.
+  # "0 10-23 * * *" → 14 corridas por día (a las 10, 11, ..., 23 UTC).
+  schedule:
+    - cron: "0 10-23 * * *"
+  workflow_dispatch: {}     # permite disparar manualmente desde la UI
+
+permissions:
+  contents: write           # para commitear el estado a la rama "data"
+  pages: write              # para deployar Pages
+  id-token: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout código (main)
+        uses: actions/checkout@v4
+        with:
+          path: code
+
+      - name: Checkout estado previo (rama "data", si existe)
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: data
+          path: state
+
+      - name: Restaurar DB y reportes previos al working tree
+        run: |
+          set -e
+          if [ -d state ]; then
+            mkdir -p code/data code/viewer code/reports code/logs
+            cp -r state/data/.   code/data/    2>/dev/null || true
+            cp -r state/viewer/. code/viewer/  2>/dev/null || true
+            cp -r state/reports/. code/reports/ 2>/dev/null || true
+          fi
+        shell: bash
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install deps
+        working-directory: code
+        run: pip install -r requirements.txt
+
+      - name: Run scraper
+        working-directory: code
+        env:
+          TZ: America/Argentina/Buenos_Aires
+        run: python run_daily.py
+
+      - name: Persistir estado a la rama "data"
+        run: |
+          set -e
+          # Preparamos un repo limpio en /tmp/data con sólo los artefactos.
+          rm -rf /tmp/data && mkdir /tmp/data
+          cp -r code/data    /tmp/data/data
+          cp -r code/viewer  /tmp/data/viewer
+          cp -r code/reports /tmp/data/reports 2>/dev/null || true
+          cp -r code/logs    /tmp/data/logs    2>/dev/null || true
+          cd /tmp/data
+          git init -q -b data
+          git config user.name  "scraprop-bot"
+          git config user.email "scraprop-bot@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git add .
+          git commit -q -m "scrape $(date -u +%Y-%m-%dT%H:%M:%SZ)" || { echo "nothing to commit"; exit 0; }
+          git push -q origin data --force
+        shell: bash
+
+      - name: Empaquetar viewer para Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: code/viewer
+
+  deploy-pages:
+    needs: scrape
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
