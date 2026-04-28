@@ -61,6 +61,7 @@ class Store:
         # these columns existed.
         self._add_column_if_missing("listings", "antiguedad", "TEXT")
         self._add_column_if_missing("listings", "orientacion", "TEXT")
+        self._add_column_if_missing("listings", "banos", "INTEGER")
         self.db.commit()
 
     def _add_column_if_missing(self, table: str, column: str, decl: str) -> None:
@@ -96,6 +97,7 @@ class Store:
                           expensas_ars = COALESCE(?, expensas_ars),
                           antiguedad = COALESCE(antiguedad, ?),
                           orientacion = COALESCE(orientacion, ?),
+                          banos = COALESCE(banos, ?),
                           url = ?, raw_json = ?
                     WHERE listing_id = ?""",
                 (
@@ -104,6 +106,7 @@ class Store:
                     listing.expensas_ars,
                     listing.antiguedad,
                     listing.orientacion,
+                    listing.banos,
                     listing.url,
                     json.dumps(listing.to_dict(), ensure_ascii=False),
                     listing.listing_id,
@@ -126,11 +129,11 @@ class Store:
         self.db.execute(
             """INSERT INTO listings (
                     listing_id, source, external_id, url, title, address, barrio,
-                    price_usd, expensas_ars, m2, ambientes, dormitorios,
+                    price_usd, expensas_ars, m2, ambientes, dormitorios, banos,
                     antiguedad, orientacion, description,
                     fingerprint, first_seen, last_seen, times_seen,
                     is_republish, republish_of, raw_json
-               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 listing.listing_id,
                 listing.source,
@@ -144,6 +147,7 @@ class Store:
                 listing.m2,
                 listing.ambientes,
                 listing.dormitorios,
+                listing.banos,
                 listing.antiguedad,
                 listing.orientacion,
                 listing.description,
@@ -178,15 +182,19 @@ class Store:
         return list(self.db.execute(sql, (day,)).fetchall())
 
     def all_active_listings(self) -> List[sqlite3.Row]:
-        """All non-republish listings within the current price band, used by the viewer.
-        We filter by price here too so the visor respects band tweaks even for
-        listings already stored from older runs with a wider band."""
-        from .common import PRICE_USD_MIN, PRICE_USD_MAX
+        """All non-republish listings que cumplen filtros actuales (precio, m², ambientes).
+        Filtramos acá también para que el visor respete cambios de filtro aunque
+        la DB tenga listings viejos con banda más amplia."""
+        from .common import PRICE_USD_MIN, PRICE_USD_MAX, M2_MIN, TARGET_AMBIENTES
+        amb_target = TARGET_AMBIENTES if isinstance(TARGET_AMBIENTES, tuple) else (TARGET_AMBIENTES,)
+        placeholders = ",".join("?" * len(amb_target))
         return list(self.db.execute(
-            "SELECT * FROM listings WHERE is_republish = 0 "
-            "AND price_usd BETWEEN ? AND ? "
-            "ORDER BY first_seen DESC, price_usd ASC",
-            (PRICE_USD_MIN, PRICE_USD_MAX),
+            f"SELECT * FROM listings WHERE is_republish = 0 "
+            f"AND price_usd BETWEEN ? AND ? "
+            f"AND (m2 IS NULL OR m2 >= ?) "
+            f"AND (ambientes IS NULL OR ambientes IN ({placeholders})) "
+            f"ORDER BY first_seen DESC, price_usd ASC",
+            (PRICE_USD_MIN, PRICE_USD_MAX, M2_MIN, *amb_target),
         ).fetchall())
 
     # ------------------------------------------------------------------ #

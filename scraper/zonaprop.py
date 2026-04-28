@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 import time
 from typing import Iterator
 
@@ -20,10 +21,10 @@ log = logging.getLogger("zonaprop")
 BASE = "https://www.zonaprop.com.ar"
 
 
-def _list_url(page: int) -> str:
-    """Caballito + Villa Crespo, 3 amb, $100K-170K USD, sorted newest first."""
+def _list_url(ambientes: int, page: int) -> str:
+    """Caballito + Villa Crespo, X amb, banda USD, sorted newest first."""
     base = (f"{BASE}/departamentos-venta-caballito-villa-crespo-"
-            f"{TARGET_AMBIENTES}-ambientes-mas-{PRICE_USD_MIN}-menos-{PRICE_USD_MAX}-dolar")
+            f"{ambientes}-ambientes-mas-{PRICE_USD_MIN}-menos-{PRICE_USD_MAX}-dolar")
     sort = "-orden-publicado-descendente"
     if page <= 1:
         return f"{base}{sort}.html"
@@ -47,7 +48,7 @@ def _parse_card(card) -> Listing | None:
 
     feats_el = card.select_one('[data-qa="POSTING_CARD_FEATURES"]')
     feats_text = feats_el.get_text(" ", strip=True) if feats_el else ""
-    m2 = ambientes = dorms = None
+    m2 = ambientes = dorms = banos = None
     if feats_el:
         spans = [s.get_text(" ", strip=True) for s in feats_el.select("span")]
         chunks = spans or feats_text.split()
@@ -59,8 +60,14 @@ def _parse_card(card) -> Listing | None:
                 ambientes = ambientes or parse_int(chunk)
             elif "dorm" in low:
                 dorms = dorms or parse_int(chunk)
+            elif "baño" in low or "bañ" in low or "bano" in low:
+                banos = banos or parse_int(chunk)
         if m2 is None:
             m2 = parse_int(feats_text)
+        if banos is None:
+            mb = re.search(r"(\d+)\s*ba[nñ]", feats_text, re.IGNORECASE)
+            if mb:
+                banos = int(mb.group(1))
 
     addr_el = card.select_one(".postingLocations-module__location-address")
     address = addr_el.get_text(" ", strip=True) if addr_el else ""
@@ -87,6 +94,7 @@ def _parse_card(card) -> Listing | None:
         m2=m2,
         ambientes=ambientes,
         dormitorios=dorms,
+        banos=banos,
         antiguedad=detect_antiguedad(feats_text + " " + description),
         orientacion=detect_orientacion(description + " " + raw_text),
         description=description,
@@ -119,35 +127,36 @@ def scrape(*, max_pages: int = 50,
     """Yield Listings from zonaprop matching the configured filters."""
     seen_ids: set[str] = set()
     session = cffi_requests.Session()
-    # Set sane default headers; curl_cffi already adds Chrome-like headers via impersonate
     session.headers.update({
         "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
     })
+    target_ambientes = TARGET_AMBIENTES if isinstance(TARGET_AMBIENTES, tuple) else (TARGET_AMBIENTES,)
 
-    for page_num in range(1, max_pages + 1):
-        url = _list_url(page_num)
-        html = _fetch(url, session)
-        if not html:
-            log.warning("zonaprop: stopping at page %s (fetch failed)", page_num)
-            break
+    for amb in target_ambientes:
+        for page_num in range(1, max_pages + 1):
+            url = _list_url(amb, page_num)
+            html = _fetch(url, session)
+            if not html:
+                log.warning("zonaprop: stopping %samb at page %s (fetch failed)", amb, page_num)
+                break
 
-        soup = BeautifulSoup(html, "html.parser")
-        cards = soup.select("div[data-id][data-posting-type='PROPERTY']")
-        log.info("zonaprop page %s -> %s cards", page_num, len(cards))
-        if not cards:
-            break
+            soup = BeautifulSoup(html, "html.parser")
+            cards = soup.select("div[data-id][data-posting-type='PROPERTY']")
+            log.info("zonaprop %samb page %s -> %s cards", amb, page_num, len(cards))
+            if not cards:
+                break
 
-        for card in cards:
-            listing = _parse_card(card)
-            if listing is None:
-                continue
-            if listing.listing_id in seen_ids:
-                continue
-            if not matches_filters(listing):
-                continue
-            seen_ids.add(listing.listing_id)
-            yield listing
+            for card in cards:
+                listing = _parse_card(card)
+                if listing is None:
+                    continue
+                if listing.listing_id in seen_ids:
+                    continue
+                if not matches_filters(listing):
+                    continue
+                seen_ids.add(listing.listing_id)
+                yield listing
 
-        if len(cards) < 20:
-            break
-        time.sleep(random.uniform(delay_min, delay_max))
+            if len(cards) < 20:
+                break
+            time.sleep(random.uniform(delay_min, delay_max))

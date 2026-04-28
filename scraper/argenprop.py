@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Iterator, List
 
@@ -28,11 +29,9 @@ HEADERS = {
 }
 
 
-def _list_url(barrio_slug: str, page: int) -> str:
-    """Argenprop URL pattern, ordenado por más nuevos primero.
-    Ej: https://www.argenprop.com/departamentos/venta/caballito?orden-masnuevos
-    """
-    base = (f"{BASE}/departamentos/venta/{barrio_slug}/{TARGET_AMBIENTES}-ambientes/"
+def _list_url(barrio_slug: str, ambientes: int, page: int) -> str:
+    """Argenprop URL pattern, ordenado por más nuevos primero."""
+    base = (f"{BASE}/departamentos/venta/{barrio_slug}/{ambientes}-ambientes/"
             f"dolares-desde-{PRICE_USD_MIN}-hasta-{PRICE_USD_MAX}")
     qs = "orden-masnuevos" if page <= 1 else f"pagina-{page}&orden-masnuevos"
     return f"{base}?{qs}"
@@ -76,21 +75,32 @@ def _parse_card(card) -> Listing | None:
     feats_text = feats_el.get_text(" ", strip=True) if feats_el else ""
     m2 = None
     dorms = None
+    banos = None
     if feats_el:
         for li in feats_el.select("li"):
             t = li.get_text(" ", strip=True).lower()
-            if "m" in t and "²" in t or "m" in t and "2" in t:
+            if "m" in t and ("²" in t or "2" in t):
                 m2 = m2 or parse_int(t)
             if "dorm" in t:
                 dorms = dorms or parse_int(t)
+            if "baño" in t or "bano" in t or "bañ" in t:
+                banos = banos or parse_int(t)
         # fallback regex
         if m2 is None:
             m2 = parse_int(feats_text)
+        if banos is None:
+            mb = re.search(r"(\d+)\s*ba[nñ]", feats_text, re.IGNORECASE)
+            if mb:
+                banos = int(mb.group(1))
 
-    # ambientes — listing URL implies 3 ambientes due to filter; site sometimes
-    # exposes it via attribute "ambientes"
+    # ambientes — leemos el atributo "ambientes" del card (más confiable);
+    # si no aparece, lo inferimos del slug de la URL.
     amb_attr = a.get("ambientes")
-    ambientes = parse_int(amb_attr) if amb_attr else TARGET_AMBIENTES
+    ambientes = parse_int(amb_attr) if amb_attr else None
+    if ambientes is None:
+        m_amb = re.search(r"(\d+)-ambientes", url)
+        if m_amb:
+            ambientes = int(m_amb.group(1))
 
     # Barrio: try card text + address + URL slug
     location_blob = " ".join([
@@ -113,6 +123,7 @@ def _parse_card(card) -> Listing | None:
         m2=m2,
         ambientes=ambientes,
         dormitorios=dorms,
+        banos=banos,
         antiguedad=detect_antiguedad(feats_text + " " + title),
         orientacion=detect_orientacion(title + " " + raw_text),
         description=title,
@@ -147,33 +158,34 @@ def scrape(*, max_pages_per_barrio: int = 50,
     session = cffi_requests.Session()
     session.headers.update(HEADERS)
     seen_ids: set[str] = set()
+    target_ambientes = TARGET_AMBIENTES if isinstance(TARGET_AMBIENTES, tuple) else (TARGET_AMBIENTES,)
     for barrio_slug in barrios:
-        for page in range(1, max_pages_per_barrio + 1):
-            url = _list_url(barrio_slug, page)
-            html = _fetch(url, session)
-            if not html:
-                log.warning("argenprop: stopping %s at page %s (fetch failed)", barrio_slug, page)
-                break
-            soup = BeautifulSoup(html, "html.parser")
-            cards = soup.select(".listing__items > .listing__item")
-            log.info("argenprop %s page %s -> %s cards", barrio_slug, page, len(cards))
-            if not cards:
-                break
+        for amb in target_ambientes:
+            for page in range(1, max_pages_per_barrio + 1):
+                url = _list_url(barrio_slug, amb, page)
+                html = _fetch(url, session)
+                if not html:
+                    log.warning("argenprop: stopping %s/%samb at page %s (fetch failed)",
+                                barrio_slug, amb, page)
+                    break
+                soup = BeautifulSoup(html, "html.parser")
+                cards = soup.select(".listing__items > .listing__item")
+                log.info("argenprop %s %samb page %s -> %s cards",
+                         barrio_slug, amb, page, len(cards))
+                if not cards:
+                    break
 
-            yielded_on_page = 0
-            for card in cards:
-                listing = _parse_card(card)
-                if listing is None:
-                    continue
-                if listing.listing_id in seen_ids:
-                    continue
-                if not matches_filters(listing):
-                    continue
-                seen_ids.add(listing.listing_id)
-                yielded_on_page += 1
-                yield listing
+                for card in cards:
+                    listing = _parse_card(card)
+                    if listing is None:
+                        continue
+                    if listing.listing_id in seen_ids:
+                        continue
+                    if not matches_filters(listing):
+                        continue
+                    seen_ids.add(listing.listing_id)
+                    yield listing
 
-            # Pagination end detection: if we got fewer than 20 cards, no more pages.
-            if len(cards) < 20:
-                break
-            time.sleep(delay)
+                if len(cards) < 20:
+                    break
+                time.sleep(delay)

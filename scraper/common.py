@@ -23,9 +23,10 @@ def proxy_wrap(url: str) -> str:
 
 # Filter constants — single source of truth
 TARGET_BARRIOS = ("caballito", "villa crespo")
-TARGET_AMBIENTES = 3
+TARGET_AMBIENTES = (3, 4)        # ahora aceptamos 3 o 4 ambientes
 PRICE_USD_MIN = 135_000
 PRICE_USD_MAX = 170_000
+M2_MIN = 60                      # superficie mínima en m²
 
 
 @dataclass
@@ -41,6 +42,7 @@ class Listing:
     m2: Optional[int] = None
     ambientes: Optional[int] = None
     dormitorios: Optional[int] = None
+    banos: Optional[int] = None
     antiguedad: Optional[str] = None     # e.g. "45 años", "a estrenar", "en pozo"
     orientacion: Optional[str] = None    # "frente" | "contrafrente" | "lateral" | "interno"
     description: str = ""
@@ -168,13 +170,17 @@ def detect_barrio(text: str) -> str:
 
 
 def matches_filters(l: Listing) -> bool:
-    """Final guard: enforce 3-amb, target barrios, USD 100K-170K."""
-    if l.ambientes is not None and l.ambientes != TARGET_AMBIENTES:
+    """Final guard: enforce ambientes en TARGET_AMBIENTES, barrios target, banda USD,
+    superficie mínima."""
+    target = TARGET_AMBIENTES if isinstance(TARGET_AMBIENTES, tuple) else (TARGET_AMBIENTES,)
+    if l.ambientes is not None and l.ambientes not in target:
         return False
     if l.price_usd is None:
         return False
     if not (PRICE_USD_MIN <= l.price_usd <= PRICE_USD_MAX):
         return False
     if l.barrio not in TARGET_BARRIOS:
+        return False
+    if l.m2 is not None and l.m2 < M2_MIN:
         return False
     return True
