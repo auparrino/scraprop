@@ -6,7 +6,7 @@
 <title>SCRAPROP · Departamentos en venta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Special+Elite&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Roboto+Slab:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --paper:    #f3e8c7;       /* fondo papel crema, 50's */
@@ -30,7 +30,7 @@
       radial-gradient(circle at 78% 64%, #00000008 0 1px, transparent 2px),
       radial-gradient(circle at 42% 88%, #00000010 0 1px, transparent 2px);
     background-size: 17px 17px, 23px 23px, 31px 31px;
-    font-family: "Special Elite", "Courier New", Courier, monospace;
+    font-family: "Roboto Slab", Georgia, serif;
     font-size: 14px;
     line-height: 1.45;
   }
@@ -116,7 +116,7 @@
     width: 100%; padding: 7px 9px; font-size: 13px;
     background: #fffaea; color: var(--ink);
     border: 2px solid var(--ink); border-radius: 0;
-    font-family: "Special Elite", monospace;
+    font-family: "Roboto Slab", Georgia, serif;
     box-shadow: 2px 2px 0 var(--ink);
   }
   .filter input:focus, .filter select:focus {
@@ -142,7 +142,7 @@
     margin-top: 16px; padding: 10px 12px;
     background: var(--mustard); color: var(--ink);
     border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
-    font-family: "Special Elite", monospace; font-size: 12px; line-height: 1.7;
+    font-family: "Roboto Slab", Georgia, serif; font-size: 12px; line-height: 1.7;
   }
   .stats b { font-family: "Playfair Display", Georgia, serif; font-weight: 900; }
   button.reset {
@@ -171,7 +171,7 @@
     background: #fffaea; color: var(--ink);
     border: 2px solid var(--ink); border-radius: 0;
     padding: 5px 10px; font-size: 13px;
-    font-family: "Special Elite", monospace;
+    font-family: "Roboto Slab", Georgia, serif;
     box-shadow: 2px 2px 0 var(--ink);
   }
 
@@ -204,8 +204,8 @@
     letter-spacing: .5px;
   }
   .card .price .exp {
-    display: block; font-family: "Special Elite", monospace;
-    font-weight: 400; font-size: 11px; color: var(--ink-soft);
+    display: block; font-family: "Roboto Slab", Georgia, serif;
+    font-weight: 500; font-size: 12px; color: var(--ink);
     margin-top: 4px;
   }
   .card .source {
@@ -237,15 +237,17 @@
   .card hr.rule {
     border: 0; border-top: 1px solid var(--rule); margin: 4px 0;
   }
-  .card .meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+  .card .meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12.5px; }
   .card .meta .tag {
-    padding: 3px 8px; background: var(--paper-2); border: 1px solid var(--ink);
-    color: var(--ink); font-family: "Special Elite", monospace;
+    padding: 4px 9px; background: var(--paper-2); border: 1px solid var(--ink);
+    color: var(--ink); font-family: "Roboto Slab", Georgia, serif;
+    font-weight: 500;
   }
   .card .desc {
-    font-size: 12px; color: var(--ink-soft); line-height: 1.5;
-    max-height: 60px; overflow: hidden; position: relative;
-    font-family: "Special Elite", monospace;
+    font-size: 13px; color: var(--ink); line-height: 1.5;
+    max-height: 64px; overflow: hidden; position: relative;
+    font-family: "Roboto Slab", Georgia, serif;
+    font-weight: 400;
   }
   .card .desc::after {
     content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 18px;
@@ -256,8 +258,8 @@
     margin-top: auto; padding-top: 6px; border-top: 1px dashed var(--ink);
   }
   .card .footer .seen {
-    font-size: 11px; color: var(--ink-soft);
-    font-family: "Special Elite", monospace;
+    font-size: 12px; color: var(--ink); font-weight: 500;
+    font-family: "Roboto Slab", Georgia, serif;
   }
   .card a.link {
     font-family: "Playfair Display", Georgia, serif;
