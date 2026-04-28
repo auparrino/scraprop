@@ -5,8 +5,8 @@ import logging
 import time
 from typing import Iterator, List
 
-import requests
 from bs4 import BeautifulSoup
+from curl_cffi import requests as cffi_requests
 
 from .common import (
     Listing, detect_barrio, detect_antiguedad, detect_orientacion,
@@ -119,14 +119,20 @@ def _parse_card(card) -> Listing | None:
     )
 
 
-def _fetch(url: str, session: requests.Session, retries: int = 3) -> str | None:
+def _fetch(url: str, session, retries: int = 4) -> str | None:
+    """Fetch with Chrome TLS impersonation. Argenprop screens data-center IPs with HTTP 202
+    (a soft challenge); curl_cffi + browser-like fingerprint clears it most of the time."""
     for attempt in range(1, retries + 1):
         try:
-            r = session.get(url, headers=HEADERS, timeout=30)
+            r = session.get(url, impersonate="chrome", timeout=30)
             if r.status_code == 200:
                 return r.text
             log.warning("argenprop %s -> HTTP %s (attempt %s)", url, r.status_code, attempt)
-        except requests.RequestException as e:
+            # 202 = anti-bot "interstitial". A short wait sometimes lets us through on retry.
+            if r.status_code in (202, 429, 403):
+                time.sleep(3.0 * attempt)
+                continue
+        except Exception as e:
             log.warning("argenprop %s -> %s (attempt %s)", url, e, attempt)
         time.sleep(1.5 * attempt)
     return None
@@ -136,7 +142,8 @@ def scrape(*, max_pages_per_barrio: int = 50,
            barrios: tuple = ("caballito", "villa-crespo"),
            delay: float = 0.6) -> Iterator[Listing]:
     """Yield Listings from argenprop matching the configured filters."""
-    session = requests.Session()
+    session = cffi_requests.Session()
+    session.headers.update(HEADERS)
     seen_ids: set[str] = set()
     for barrio_slug in barrios:
         for page in range(1, max_pages_per_barrio + 1):
