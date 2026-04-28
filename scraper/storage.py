@@ -178,10 +178,15 @@ class Store:
         return list(self.db.execute(sql, (day,)).fetchall())
 
     def all_active_listings(self) -> List[sqlite3.Row]:
-        """All non-republish listings, used by the viewer/JSON export."""
+        """All non-republish listings within the current price band, used by the viewer.
+        We filter by price here too so the visor respects band tweaks even for
+        listings already stored from older runs with a wider band."""
+        from .common import PRICE_USD_MIN, PRICE_USD_MAX
         return list(self.db.execute(
             "SELECT * FROM listings WHERE is_republish = 0 "
-            "ORDER BY first_seen DESC, price_usd ASC"
+            "AND price_usd BETWEEN ? AND ? "
+            "ORDER BY first_seen DESC, price_usd ASC",
+            (PRICE_USD_MIN, PRICE_USD_MAX),
         ).fetchall())
 
     # ------------------------------------------------------------------ #

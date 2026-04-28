@@ -24,7 +24,7 @@ def proxy_wrap(url: str) -> str:
 # Filter constants — single source of truth
 TARGET_BARRIOS = ("caballito", "villa crespo")
 TARGET_AMBIENTES = 3
-PRICE_USD_MIN = 100_000
+PRICE_USD_MIN = 135_000
 PRICE_USD_MAX = 170_000
 
 
