@@ -77,6 +77,22 @@
     box-shadow: 3px 3px 0 var(--ink);
     transform: rotate(-2deg);
   }
+  .sync-btn {
+    background: var(--paper); color: var(--ink);
+    border: 2px solid var(--ink); border-radius: 0;
+    padding: 6px 12px;
+    font-family: "Playfair Display", Georgia, serif; font-weight: 900;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
+    cursor: pointer; box-shadow: 3px 3px 0 var(--teal);
+  }
+  .sync-btn:hover { background: var(--teal); color: #fffaea; box-shadow: 3px 3px 0 var(--ink); }
+  .sync-btn.on { background: var(--teal); color: #fffaea; box-shadow: 3px 3px 0 var(--ink); }
+  .sync-btn.error { background: var(--tomato); color: #fffaea; box-shadow: 3px 3px 0 var(--ink); }
+  .sync-btn.busy::after {
+    content: "·"; display: inline-block; margin-left: 4px;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
 
   .layout {
     display: grid; grid-template-columns: 290px 1fr; gap: 0;
@@ -431,6 +447,7 @@
 
     <div class="tag">Departamentos · Caballito &amp; Villa Crespo · 3 amb. · U$S 100K–170K</div>
     <div class="ribbon" id="ribbon">— · Cargando · —</div>
+    <button class="sync-btn" id="sync-btn" title="Sincronizar entre dispositivos">⟲ Sync</button>
   </div>
 </header>
 <div class="layout">
@@ -530,6 +547,39 @@
   </main>
 </div>
 
+<dialog id="sync-dialog">
+  <div class="dlg-head">⟲ Sincronización</div>
+  <div class="dlg-body">
+    <div id="sync-status" style="font-family:'Roboto Slab',Georgia,serif;font-size:13px;font-weight:700"></div>
+    <label>GitHub Personal Access Token (scope: <b>gist</b>)</label>
+    <input type="password" id="sync-token" placeholder="ghp_...">
+    <div style="font-size:11px;color:var(--ink-soft);font-family:'Roboto Slab',Georgia,serif;line-height:1.5">
+      Pegá el token y listo — ya hay un Gist privado compartido pre-armado.
+      <b>Vos y tu pareja usen el mismo token</b> en sus respectivos navegadores
+      (mismo PAT, distintos browsers). El estado se sincroniza solo.
+      <br><br>
+      Generá el token en
+      <a href="https://github.com/settings/tokens/new?scopes=gist&description=scraprop" target="_blank" style="color:var(--tomato);font-weight:700">github.com/settings/tokens/new</a>:
+      tickeá <b>gist</b>, expiración la que quieras, generalo, copialo, pegalo acá.
+      Queda guardado <b>sólo en este navegador</b>.
+    </div>
+    <details style="font-size:11px;font-family:'Roboto Slab',Georgia,serif">
+      <summary style="cursor:pointer;color:var(--ink-soft)">Avanzado: usar otro Gist ID</summary>
+      <input type="text" id="sync-gist-id" placeholder="(dejá vacío para usar el por defecto)" style="margin-top:6px">
+      <div id="sync-share-info" style="display:none;background:var(--mustard);border:2px solid var(--ink);padding:8px;line-height:1.5;margin-top:6px">
+        <b>Gist ID activo:</b>
+        <code id="sync-gist-id-display" style="display:block;background:#fffaea;padding:4px 6px;margin-top:4px;font-size:12px;word-break:break-all"></code>
+        <button type="button" id="sync-copy-id" style="margin-top:6px;border:1px solid var(--ink);background:#fffaea;padding:3px 8px;cursor:pointer;font-family:inherit;font-size:11px">Copiar</button>
+      </div>
+    </details>
+    <div class="dlg-actions">
+      <button type="button" class="clear" id="sync-disconnect">Desconectar</button>
+      <button type="button" class="cancel" id="sync-cancel">Cerrar</button>
+      <button type="button" class="save" id="sync-connect">Conectar</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="schedule-dialog">
   <div class="dlg-head">📅 Agendar visita</div>
   <form method="dialog" class="dlg-body" id="schedule-form">
@@ -560,12 +610,19 @@ function loadUserState() {
   try { return JSON.parse(localStorage.getItem(STATE_KEY) || "{}"); }
   catch { return {}; }
 }
-function saveUserState() { localStorage.setItem(STATE_KEY, JSON.stringify(state.user)); }
+function saveUserState() {
+  localStorage.setItem(STATE_KEY, JSON.stringify(state.user));
+  scheduleSyncPush();
+}
 function userOf(id) { return state.user[id] || {}; }
 function patchUser(id, patch) {
-  state.user[id] = { ...userOf(id), ...patch };
-  if (!state.user[id].contactado && !state.user[id].visto && !state.user[id].visita_at) {
-    delete state.user[id];
+  const cur = userOf(id);
+  const next = { ...cur, ...patch, _t: Date.now() };
+  if (!next.contactado && !next.visto && !next.visita_at) {
+    // tombstone: keep entry with _t so deletion propagates via merge
+    state.user[id] = { _deleted: true, _t: Date.now() };
+  } else {
+    state.user[id] = next;
   }
   saveUserState();
 }
@@ -737,6 +794,195 @@ function render() {
       : `★ ${state.data.length} avisos · ${state.generated_at} ★`;
   }
   renderAgenda();
+}
+
+// ----------------------------- SYNC (Gist) ----------------------------------
+const SYNC_TOKEN_KEY = "scraprop_sync_token";
+const SYNC_GIST_KEY  = "scraprop_sync_gist_id";
+const GIST_FILE      = "scraprop_state.json";
+// Gist privado pre-provisionado para que vos y tu pareja compartan estado
+// sin tener que coordinar IDs. Sólo necesitan el mismo PAT (con scope gist).
+const DEFAULT_GIST_ID = "e9c5b6ae15e7908936cbd651259caf8b";
+let syncTimer = null;
+let syncBusy = false;
+
+function syncToken() { return localStorage.getItem(SYNC_TOKEN_KEY) || ""; }
+function syncGistId() { return localStorage.getItem(SYNC_GIST_KEY) || DEFAULT_GIST_ID; }
+function isSyncEnabled() { return !!(syncToken() && syncGistId()); }
+
+function setSyncCreds(token, gistId) {
+  if (token) localStorage.setItem(SYNC_TOKEN_KEY, token); else localStorage.removeItem(SYNC_TOKEN_KEY);
+  if (gistId) localStorage.setItem(SYNC_GIST_KEY, gistId); else localStorage.removeItem(SYNC_GIST_KEY);
+  updateSyncBtn();
+}
+
+function updateSyncBtn(label) {
+  const btn = $("#sync-btn");
+  if (!btn) return;
+  btn.classList.remove("on", "error", "busy");
+  if (label === "error") { btn.classList.add("error"); btn.textContent = "⟲ Sync ✕"; return; }
+  if (label === "busy")  { btn.classList.add("on", "busy"); btn.textContent = "⟲ Sync"; return; }
+  if (isSyncEnabled())   { btn.classList.add("on"); btn.textContent = "⟲ Sync ✓"; return; }
+  btn.textContent = "⟲ Sync";
+}
+
+async function gistApi(path, opts = {}) {
+  const token = syncToken();
+  const res = await fetch(`https://api.github.com${path}`, {
+    ...opts,
+    headers: {
+      "Accept": "application/vnd.github+json",
+      "Authorization": `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(opts.body ? { "Content-Type": "application/json" } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`gist api ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+async function gistCreate() {
+  const data = await gistApi("/gists", {
+    method: "POST",
+    body: JSON.stringify({
+      description: "scraprop user state (private, shared with partner)",
+      public: false,
+      files: { [GIST_FILE]: { content: JSON.stringify(state.user) } },
+    }),
+  });
+  return data.id;
+}
+
+async function gistRead() {
+  const data = await gistApi(`/gists/${syncGistId()}`);
+  const file = data.files && data.files[GIST_FILE];
+  if (!file) return {};
+  try { return JSON.parse(file.content || "{}"); }
+  catch { return {}; }
+}
+
+async function gistWrite(stateObj) {
+  await gistApi(`/gists/${syncGistId()}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      files: { [GIST_FILE]: { content: JSON.stringify(stateObj) } },
+    }),
+  });
+}
+
+function mergeStates(a, b) {
+  /* per-key last-write-wins on _t */
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  const out = {};
+  for (const k of keys) {
+    const va = a ? a[k] : null;
+    const vb = b ? b[k] : null;
+    if (!va) { out[k] = vb; continue; }
+    if (!vb) { out[k] = va; continue; }
+    out[k] = (vb._t || 0) > (va._t || 0) ? vb : va;
+  }
+  // Strip tombstones older than 30 days to keep the gist tidy
+  const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+  for (const k of Object.keys(out)) {
+    if (out[k] && out[k]._deleted && (out[k]._t || 0) < cutoff) delete out[k];
+  }
+  return out;
+}
+
+async function syncPull() {
+  if (!isSyncEnabled()) return;
+  try {
+    updateSyncBtn("busy");
+    const remote = await gistRead();
+    state.user = mergeStates(state.user, remote);
+    localStorage.setItem(STATE_KEY, JSON.stringify(state.user));
+    updateSyncBtn();
+    return true;
+  } catch (e) {
+    console.warn("syncPull failed:", e);
+    updateSyncBtn("error");
+    return false;
+  }
+}
+
+function scheduleSyncPush() {
+  if (!isSyncEnabled()) return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncPushNow, 1500);
+}
+
+async function syncPushNow() {
+  if (!isSyncEnabled() || syncBusy) return;
+  syncBusy = true;
+  updateSyncBtn("busy");
+  try {
+    // pull-merge-push to avoid clobbering remote edits since last pull
+    const remote = await gistRead();
+    state.user = mergeStates(state.user, remote);
+    localStorage.setItem(STATE_KEY, JSON.stringify(state.user));
+    await gistWrite(state.user);
+    updateSyncBtn();
+    render();
+  } catch (e) {
+    console.warn("syncPushNow failed:", e);
+    updateSyncBtn("error");
+  } finally {
+    syncBusy = false;
+  }
+}
+
+function bindSyncDialog() {
+  $("#sync-btn").addEventListener("click", () => {
+    $("#sync-token").value = syncToken();
+    $("#sync-gist-id").value = syncGistId();
+    showShareInfo(syncGistId());
+    $("#sync-status").textContent = isSyncEnabled() ? "Conectado." : "No conectado.";
+    $("#sync-status").style.color = isSyncEnabled() ? "var(--teal)" : "var(--ink-soft)";
+    $("#sync-dialog").showModal();
+  });
+  $("#sync-cancel").addEventListener("click", () => $("#sync-dialog").close());
+  $("#sync-disconnect").addEventListener("click", () => {
+    setSyncCreds("", "");
+    $("#sync-dialog").close();
+  });
+  $("#sync-connect").addEventListener("click", async () => {
+    const tok = $("#sync-token").value.trim();
+    const gid = $("#sync-gist-id").value.trim();   // empty = use DEFAULT_GIST_ID
+    if (!tok) { setStatus("Pegá un token.", true); return; }
+    setSyncCreds(tok, gid);
+    setStatus("Conectando…");
+    try {
+      setStatus("Sincronizando…");
+      const ok = await syncPull();
+      if (!ok) throw new Error("No pude leer el Gist (token inválido o sin scope 'gist'?)");
+      await syncPushNow();
+      setStatus("Conectado. Cambios se sincronizan solos.", false, "var(--teal)");
+      showShareInfo(syncGistId());
+      render();
+    } catch (e) {
+      console.error(e);
+      setStatus("Error: " + e.message, true);
+    }
+  });
+  $("#sync-copy-id").addEventListener("click", () => {
+    navigator.clipboard.writeText(syncGistId()).then(() => {
+      $("#sync-copy-id").textContent = "Copiado ✓";
+      setTimeout(() => { $("#sync-copy-id").textContent = "Copiar Gist ID"; }, 1500);
+    });
+  });
+}
+
+function setStatus(msg, isErr, color) {
+  $("#sync-status").textContent = msg;
+  $("#sync-status").style.color = color || (isErr ? "var(--tomato)" : "var(--ink)");
+}
+
+function showShareInfo(gistId) {
+  const wrap = $("#sync-share-info");
+  if (!gistId) { wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  $("#sync-gist-id-display").textContent = gistId;
 }
 
 // ----------------------------- AGENDA & USER STATE ---------------------------
@@ -928,6 +1174,8 @@ async function loadData() {
 async function main() {
   bindFilters();
   bindActions();
+  bindSyncDialog();
+  updateSyncBtn();
   const json = await loadData();
   if (!json) {
     $("#grid").innerHTML = '<div class="empty">No encuentro <code>data.js</code> ni <code>data.json</code>.<br>Corré <code>python run_daily.py</code> primero.</div>';
@@ -947,6 +1195,11 @@ async function main() {
   buildChips("#f-orient",  orient,  "orient");
 
   render();
+
+  // Background pull on load — if remote has changes since last visit, merge them.
+  if (isSyncEnabled()) {
+    syncPull().then(ok => { if (ok) render(); });
+  }
 }
 main();
 </script>
