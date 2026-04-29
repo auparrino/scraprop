@@ -737,7 +737,7 @@
     </div>
 
     <div class="toolbar">
-      <div class="count"><b id="visible-count">0</b> de <b id="total-count">0</b> · generado <span id="gen-date">-</span></div>
+      <div class="count"><b id="visible-count">0</b> de <b id="total-count">0</b> · generado <span id="gen-date">-</span><span id="gen-time" class="gen-time"></span></div>
       <div>
         <label style="font-size:12px;color:var(--muted);margin-right:6px">Ordenar:</label>
         <select id="sort">
@@ -852,6 +852,7 @@ function patchUser(id, patch) {
 const state = {
   data: [],
   generated_at: null,
+  generated_at_time: null,
   todayStr: null,
   user: loadUserState(),
   filters: {
@@ -1042,7 +1043,7 @@ function render() {
   if (rib) {
     rib.textContent = newToday > 0
       ? `★ ${newToday} avisos NUEVOS hoy ★`
-      : `★ ${state.data.length} avisos · ${state.generated_at} ★`;
+      : `★ ${state.data.length} avisos · ${state.generated_at}${state.generated_at_time ? ' ' + state.generated_at_time : ''} ★`;
   }
   renderAgenda();
   updateNavCounts(sorted.length, getScheduledListings().length, countActiveFilters());
@@ -1504,8 +1505,10 @@ async function main() {
   }
   state.data = json.listings || [];
   state.generated_at = json.generated_at;
+  state.generated_at_time = json.generated_at_time || null;
   state.todayStr = json.generated_at;
   $("#gen-date").textContent = json.generated_at;
+  $("#gen-time").textContent = state.generated_at_time ? ' ' + state.generated_at_time : '';
 
   // Distinct values for chips
   const barrios = [...new Set(state.data.map(l => l.barrio).filter(Boolean))].sort();
