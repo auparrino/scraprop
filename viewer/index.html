@@ -310,6 +310,7 @@
   .actions .check:hover { background: var(--paper-2); }
   .actions .check.on { background: var(--teal); color: #fffaea; border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
   .actions .check.on.contacted { background: var(--mustard); color: var(--ink); }
+  .actions .check.on.starred { background: var(--tomato); color: #fffaea; }
   .actions .check .box {
     display: inline-flex; align-items: center; justify-content: center;
     width: 14px; height: 14px; border: 2px solid var(--ink); background: #fffaea;
@@ -516,6 +517,7 @@
 
     <h2>Mi seguimiento</h2>
     <div class="filter">
+      <label><input type="checkbox" id="f-starred" style="margin-right:6px"> ★ Sólo me interesan</label>
       <label><input type="checkbox" id="f-uncontacted" style="margin-right:6px"> Sólo no contactados</label>
       <label><input type="checkbox" id="f-unseen" style="margin-right:6px"> Sólo no vistos</label>
       <label><input type="checkbox" id="f-scheduled" style="margin-right:6px"> Sólo con visita agendada</label>
@@ -627,7 +629,7 @@ function userOf(id) { return state.user[id] || {}; }
 function patchUser(id, patch) {
   const cur = userOf(id);
   const next = { ...cur, ...patch, _t: Date.now() };
-  if (!next.contactado && !next.visto && !next.visita_at) {
+  if (!next.contactado && !next.visto && !next.visita_at && !next.interesa) {
     // tombstone: keep entry with _t so deletion propagates via merge
     state.user[id] = { _deleted: true, _t: Date.now() };
   } else {
@@ -656,6 +658,7 @@ const state = {
     uncontacted: false,
     unseen: false,
     scheduled: false,
+    starred: false,
   },
   sort: "first_seen_desc",
 };
@@ -713,6 +716,7 @@ function passes(l) {
   if (f.uncontacted && u.contactado) return false;
   if (f.unseen && u.visto) return false;
   if (f.scheduled && !u.visita_at) return false;
+  if (f.starred && !u.interesa) return false;
   return true;
 }
 
@@ -765,6 +769,9 @@ function cardHTML(l) {
         <a class="link" href="${l.url}" target="_blank" rel="noopener">Abrir →</a>
       </div>
       <div class="actions" data-id="${l.listing_id}">
+        <div class="check starred ${u.interesa ? 'on' : ''}" data-act="interesa" title="Me interesa">
+          <span class="box">${u.interesa ? '★' : '☆'}</span> Me interesa
+        </div>
         <div class="check contacted ${u.contactado ? 'on' : ''}" data-act="contactado" title="Marcar como contactado">
           <span class="box">${u.contactado ? '✓' : ''}</span> Contactado
         </div>
@@ -1089,7 +1096,7 @@ function bindActions() {
       if (!wrap) return;
       const id = wrap.getAttribute("data-id");
       const act = actEl.getAttribute("data-act");
-      if (act === "contactado" || act === "visto") {
+      if (act === "contactado" || act === "visto" || act === "interesa") {
         const cur = userOf(id);
         patchUser(id, { [act]: !cur[act] });
         render();
@@ -1163,19 +1170,21 @@ function bindFilters() {
   $("#f-uncontacted").addEventListener("change", e => { state.filters.uncontacted = e.target.checked; render(); });
   $("#f-unseen").addEventListener("change", e => { state.filters.unseen = e.target.checked; render(); });
   $("#f-scheduled").addEventListener("change", e => { state.filters.scheduled = e.target.checked; render(); });
+  $("#f-starred").addEventListener("change", e => { state.filters.starred = e.target.checked; render(); });
   $("#sort").addEventListener("change", e => { state.sort = e.target.value; render(); });
   $("#reset-filters").addEventListener("click", () => {
     state.filters = {
       text:"", pmin:null, pmax:null, mmin:null, mmax:null, amin:null, amax:null,
       barrios:new Set(), sources:new Set(), orient:new Set(),
       amb:new Set(), banos:new Set(), cardinal:new Set(),
-      onlyNew:false, uncontacted:false, unseen:false, scheduled:false,
+      onlyNew:false, uncontacted:false, unseen:false, scheduled:false, starred:false,
     };
     $$("input[type=text],input[type=number]").forEach(i => i.value = "");
     $("#f-only-new").checked = false;
     $("#f-uncontacted").checked = false;
     $("#f-unseen").checked = false;
     $("#f-scheduled").checked = false;
+    $("#f-starred").checked = false;
     $$(".chip").forEach(c => c.classList.remove("active"));
     render();
   });
