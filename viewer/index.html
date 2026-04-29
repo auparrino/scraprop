@@ -321,12 +321,21 @@
     }
     .masthead .tag {
       font-size: 12px;
-      flex-basis: 100%;
+      flex: 0 0 100%;        /* fuerza ocupar todo el ancho — no shrink */
+      width: 100%;
       order: 99;
       border-left: 0;
       padding-left: 0;
       margin-left: 0;
       line-height: 1.3;
+    }
+    /* break antes del tag para garantizar que arranque en línea nueva */
+    .masthead::before {
+      content: "";
+      flex-basis: 100%;
+      width: 100%;
+      height: 0;
+      order: 50;
     }
     .masthead .ribbon {
       margin-left: auto;
