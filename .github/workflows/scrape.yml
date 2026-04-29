@@ -66,10 +66,9 @@ jobs:
           TZ: America/Argentina/Buenos_Aires
           # Si el secret está configurado, los scrapers rutean por ScraperAPI con IP residencial AR.
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
-        # Limito páginas para no quemar la cuota del proxy.
-        # 2 págs × (3+4 amb) × 2 fuentes × 14 corridas/día ≈ 100 reqs/día → ~3K/mes
-        # (5K free tier de ScraperAPI cubre con margen).
-        run: python run_daily.py --max-pages 2
+        # Cuota del proxy: 3 págs × (3+4 amb) × 2 fuentes × 9 corridas/día ≈ 162 reqs/día
+        # → ~4.860/mes (97% del free tier de 5K — queda al borde, aceptable).
+        run: python run_daily.py --max-pages 3
 
       - name: Persistir estado a la rama "data"
         run: |
