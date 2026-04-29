@@ -158,6 +158,7 @@ def _export_viewer_data(store, today: str) -> Path:
             "banos": r["banos"],
             "antiguedad": r["antiguedad"],
             "orientacion": r["orientacion"],
+            "orientacion_cardinal": r["orientacion_cardinal"],
             "description": r["description"],
             "first_seen": r["first_seen"],
             "last_seen": r["last_seen"],

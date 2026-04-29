@@ -45,6 +45,7 @@ class Listing:
     banos: Optional[int] = None
     antiguedad: Optional[str] = None     # e.g. "45 años", "a estrenar", "en pozo"
     orientacion: Optional[str] = None    # "frente" | "contrafrente" | "lateral" | "interno"
+    orientacion_cardinal: Optional[str] = None  # "N" | "S" | "E" | "O" | "NE" | "NO" | "SE" | "SO"
     description: str = ""
     raw_text: str = field(default="", repr=False)
 
@@ -155,6 +156,35 @@ def detect_orientacion(text: str) -> Optional[str]:
     t = " " + normalize_text(text) + " "
     for needle, label in _ORIENT_TOKENS:
         if needle in t:
+            return label
+    return None
+
+
+# Cardinal orientation extracted from free-text descriptions.
+# Order matters: compound directions first so "noreste" wins over "este".
+_CARDINAL_PATTERNS = [
+    (re.compile(r"\b(noroeste|nor\s*oeste)\b", re.IGNORECASE), "NO"),
+    (re.compile(r"\b(noreste|nor\s*este)\b", re.IGNORECASE), "NE"),
+    (re.compile(r"\b(sudoeste|suroeste|sur\s*oeste|sud\s*oeste)\b", re.IGNORECASE), "SO"),
+    (re.compile(r"\b(sudeste|sureste|sur\s*este|sud\s*este)\b", re.IGNORECASE), "SE"),
+    (re.compile(r"\b(?:al\s+)?norte\b", re.IGNORECASE), "N"),
+    (re.compile(r"\b(?:al\s+)?sur\b", re.IGNORECASE), "S"),
+    (re.compile(r"\b(?:al\s+)?este\b(?!\s+(?:departamento|piso|barrio|edificio))", re.IGNORECASE), "E"),
+    (re.compile(r"\b(?:al\s+)?oeste\b", re.IGNORECASE), "O"),
+]
+
+
+def detect_orientacion_cardinal(text: str) -> Optional[str]:
+    """Pull N/S/E/O (and NE/NO/SE/SO) hints from free-text description.
+
+    Real-estate listings sometimes spell it out ("orientación norte",
+    "vista al sudeste"). Returns the first compound match if present,
+    otherwise the first simple match. None if nothing found.
+    """
+    if not text:
+        return None
+    for pat, label in _CARDINAL_PATTERNS:
+        if pat.search(text):
             return label
     return None
 

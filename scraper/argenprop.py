@@ -11,7 +11,7 @@ from curl_cffi import requests as cffi_requests
 
 from .common import (
     Listing, detect_barrio, detect_antiguedad, detect_orientacion,
-    parse_int, matches_filters, proxy_wrap,
+    detect_orientacion_cardinal, parse_int, matches_filters, proxy_wrap,
     PRICE_USD_MIN, PRICE_USD_MAX, TARGET_AMBIENTES,
 )
 
@@ -126,6 +126,7 @@ def _parse_card(card) -> Listing | None:
         banos=banos,
         antiguedad=detect_antiguedad(feats_text + " " + title),
         orientacion=detect_orientacion(title + " " + raw_text),
+        orientacion_cardinal=detect_orientacion_cardinal(title + " " + raw_text),
         description=title,
         raw_text=raw_text,
     )

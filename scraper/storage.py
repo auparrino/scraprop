@@ -62,6 +62,7 @@ class Store:
         self._add_column_if_missing("listings", "antiguedad", "TEXT")
         self._add_column_if_missing("listings", "orientacion", "TEXT")
         self._add_column_if_missing("listings", "banos", "INTEGER")
+        self._add_column_if_missing("listings", "orientacion_cardinal", "TEXT")
         self.db.commit()
 
     def _add_column_if_missing(self, table: str, column: str, decl: str) -> None:
@@ -97,6 +98,7 @@ class Store:
                           expensas_ars = COALESCE(?, expensas_ars),
                           antiguedad = COALESCE(antiguedad, ?),
                           orientacion = COALESCE(orientacion, ?),
+                          orientacion_cardinal = COALESCE(orientacion_cardinal, ?),
                           banos = COALESCE(banos, ?),
                           url = ?, raw_json = ?
                     WHERE listing_id = ?""",
@@ -106,6 +108,7 @@ class Store:
                     listing.expensas_ars,
                     listing.antiguedad,
                     listing.orientacion,
+                    listing.orientacion_cardinal,
                     listing.banos,
                     listing.url,
                     json.dumps(listing.to_dict(), ensure_ascii=False),
@@ -130,10 +133,10 @@ class Store:
             """INSERT INTO listings (
                     listing_id, source, external_id, url, title, address, barrio,
                     price_usd, expensas_ars, m2, ambientes, dormitorios, banos,
-                    antiguedad, orientacion, description,
+                    antiguedad, orientacion, orientacion_cardinal, description,
                     fingerprint, first_seen, last_seen, times_seen,
                     is_republish, republish_of, raw_json
-               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 listing.listing_id,
                 listing.source,
@@ -150,6 +153,7 @@ class Store:
                 listing.banos,
                 listing.antiguedad,
                 listing.orientacion,
+                listing.orientacion_cardinal,
                 listing.description,
                 fp,
                 today,
