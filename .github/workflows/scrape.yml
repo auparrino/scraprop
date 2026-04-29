@@ -2,13 +2,15 @@ name: scrape-hourly
 
 on:
   # Cron en UTC. ART = UTC-3, entonces 7:00-20:00 ART = 10:00-23:00 UTC.
-  # Cadencia cada 1:30h durante 7:00-19:00 ART (9 corridas/día):
-  #   ART  : 7:00 8:30 10:00 11:30 13:00 14:30 16:00 17:30 19:00
-  #   UTC  : 10:00 11:30 13:00 14:30 16:00 17:30 19:00 20:30 22:00
+  # Cadencia cada 1:30h durante ~7:00-19:00 ART (9 corridas/día):
+  #   ART  ≈ 7:17 8:47 10:17 11:47 13:17 14:47 16:17 17:47 19:17
+  #   UTC  ≈ 10:17 11:47 13:17 14:47 16:17 17:47 19:17 20:47 22:17
+  # Usamos minutos :17 y :47 (en vez de :00 y :30) para evitar los slots
+  # saturados de GitHub Actions, que demoran o descartan crons en horas exactas.
   # Necesitamos dos crons porque cron estándar no soporta intervalos de 90 min.
   schedule:
-    - cron: "0 10,13,16,19,22 * * *"   # horas exactas
-    - cron: "30 11,14,17,20 * * *"     # medias horas
+    - cron: "17 10,13,16,19,22 * * *"   # :17 de horas pares de la cadencia
+    - cron: "47 11,14,17,20 * * *"      # :47 de las intermedias
   workflow_dispatch: {}     # permite disparar manualmente desde la UI
 
 permissions:
