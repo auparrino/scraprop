@@ -289,160 +289,201 @@
     font-style: italic; font-size: 18px; color: var(--ink-soft);
   }
 
-  /* ===== TABLET (≤900px): 1 columna ===== */
+  /* ============ MOBILE/TABLET REDESIGN (≤900px) ============
+     - Header mini (solo logo + sync; tag y ribbon ocultos)
+     - Filtros como drawer lateral, accesible desde nav inferior
+     - Agenda como drawer lateral, accesible desde nav inferior
+     - Cards minimalistas: precio + dirección + m² + amb (resto oculto)
+     - Nav inferior fijo: 📋 Lista · 🔍 Filtros · 📅 Agenda
+  */
   @media (max-width: 900px) {
-    .layout { grid-template-columns: 1fr; max-width: 100%; }
-    aside {
-      position: static; height: auto;
-      border-right: none; border-bottom: 2px dashed var(--ink);
-      max-height: none;
-    }
-    .masthead h1 { font-size: 30px; letter-spacing: 2px; }
-    .masthead .ribbon { transform: rotate(-1deg); }
-  }
-
-  /* ===== PHONE (≤768px): full mobile polish ===== */
-  @media (max-width: 768px) {
-    html, body { font-size: 15px; }
-
-    /* HEADER: todo wrap, sync-btn al lado del logo, tag en su propia línea */
-    header {
-      padding: 10px 12px 12px;
-      border-bottom-width: 3px;
-    }
-    .masthead {
-      gap: 8px;
-      max-width: 100%;
-    }
-    .masthead .starburst { width: 22px; height: 22px; }
+    /* Header compacto */
+    header { padding: 10px 14px; border-bottom-width: 2px; }
+    .masthead { gap: 10px; max-width: 100%; flex-wrap: nowrap; }
+    .masthead .starburst { width: 20px; height: 20px; }
     .masthead h1 {
-      font-size: 22px; letter-spacing: 1.5px;
-      text-shadow: 1.5px 1.5px 0 var(--ink);
+      font-size: 22px; letter-spacing: 1.5px; text-shadow: 1.5px 1.5px 0 var(--ink);
     }
-    .masthead .tag {
-      font-size: 12px;
-      flex: 0 0 100%;        /* fuerza ocupar todo el ancho — no shrink */
-      width: 100%;
-      order: 99;
-      border-left: 0;
-      padding-left: 0;
-      margin-left: 0;
-      line-height: 1.3;
-    }
-    /* break antes del tag para garantizar que arranque en línea nueva */
-    .masthead::before {
-      content: "";
-      flex-basis: 100%;
-      width: 100%;
-      height: 0;
-      order: 50;
-    }
-    .masthead .ribbon {
-      margin-left: auto;
-      padding: 4px 9px; font-size: 10px; letter-spacing: 1.5px;
-      box-shadow: 2px 2px 0 var(--ink);
-      transform: rotate(-2deg);
-      max-width: 60%;
-      text-align: center;
-    }
+    .masthead .tag { display: none; }
+    .masthead .ribbon { display: none; }
     .sync-btn {
-      padding: 5px 9px; font-size: 10px; letter-spacing: 1.5px;
+      margin-left: auto;
+      padding: 6px 10px; font-size: 11px; letter-spacing: 1.5px;
       box-shadow: 2px 2px 0 var(--teal);
     }
 
-    /* SIDEBAR (aside) */
-    aside { padding: 14px 12px 18px; }
-    aside h2 { font-size: 12px; letter-spacing: 1.5px; margin: 14px 0 8px; }
-    .filter { margin-bottom: 10px; }
+    /* Layout: solo main, sidebar pasa a drawer */
+    .layout { grid-template-columns: 1fr; max-width: 100%; min-height: 0; }
 
-    /* MAIN */
-    main { padding: 14px 12px 28px; }
+    /* Aside (filtros) — drawer lateral derecho */
+    aside {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 88%; max-width: 360px;
+      height: 100%; max-height: 100%;
+      transform: translateX(100%);
+      transition: transform .25s ease;
+      z-index: 60;
+      border-right: 0; border-left: 3px solid var(--ink);
+      box-shadow: -6px 0 0 #1c14101a;
+      overflow-y: auto;
+      padding: 16px 14px 100px;     /* bottom space para no chocar con nav */
+    }
+    body.drawer-filters aside { transform: translateX(0); }
+
+    /* Agenda — drawer lateral izquierdo */
+    .agenda {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 92%; max-width: 460px;
+      height: 100%; max-height: 100%;
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      z-index: 60;
+      box-shadow: 6px 0 0 #1c14101a;
+      overflow-y: auto;
+      margin: 0;
+      padding-bottom: 100px;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 27px, var(--rule) 27px 28px),
+        #fffaea;
+    }
+    body.drawer-agenda .agenda { transform: translateX(0); }
+    .agenda-head { position: sticky; top: 0; z-index: 1; }
+    .agenda-head button.toggle { display: none; }
+    /* close button para drawers */
+    .drawer-close {
+      position: absolute; top: 6px; right: 8px; z-index: 2;
+      width: 36px; height: 36px;
+      border: 2px solid var(--ink); border-radius: 0;
+      background: var(--paper); color: var(--ink);
+      font-size: 20px; font-weight: 900; line-height: 1;
+      cursor: pointer; box-shadow: 2px 2px 0 var(--ink);
+    }
+    .drawer-close:hover { background: var(--tomato); color: #fffaea; }
+
+    /* Backdrop oscuro cuando un drawer está abierto */
+    .drawer-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(28, 20, 16, .55);
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s ease;
+      z-index: 50;
+    }
+    body.drawer-filters .drawer-backdrop,
+    body.drawer-agenda .drawer-backdrop { opacity: 1; pointer-events: auto; }
+    body.drawer-filters, body.drawer-agenda { overflow: hidden; }
+
+    /* Main: sin agenda arriba (la mostramos sólo en su drawer) */
+    main { padding: 12px 12px 80px; }
     .toolbar {
       gap: 8px; padding-bottom: 8px; margin-bottom: 12px;
-      flex-direction: column; align-items: stretch;
+      align-items: center; justify-content: space-between;
     }
     .toolbar .count { font-size: 13px; }
-    .toolbar > div:last-child { display: flex; gap: 6px; align-items: center; }
-    .toolbar select { font-size: 13px; padding: 7px 9px; flex: 1; }
+    .toolbar select { font-size: 12px; padding: 6px 9px; max-width: 160px; }
 
-    /* CARDS: 1 columna, sombras chicas para no salir de viewport */
-    .grid { grid-template-columns: 1fr; gap: 14px; }
+    /* Grid 1 columna, cards minimalistas */
+    .grid { grid-template-columns: 1fr; gap: 12px; }
     .card {
-      padding: 12px 14px 10px;
+      padding: 12px 14px;
       box-shadow: 3px 3px 0 var(--ink);
       width: 100%;
+      gap: 6px;
     }
     .card:hover { transform: none; box-shadow: 3px 3px 0 var(--ink); }
-    .card .head { gap: 8px; }
+    .card .head { gap: 8px; align-items: center; }
     .card .price { font-size: 22px; }
-    .card .price .exp { font-size: 11px; }
+    .card .price .exp { display: none; }              /* expensas ocultas en mobile */
     .card .addr { font-size: 15px; line-height: 1.25; word-break: break-word; }
     .card .barrio { font-size: 11px; letter-spacing: 1px; }
-    .card .meta { gap: 5px; font-size: 11.5px; }
-    .card .meta .tag { padding: 3px 7px; }
-    .card .source { font-size: 9px; padding: 2px 6px; letter-spacing: 1.5px; }
+    .card .source { display: none; }
     .card .new-tag { font-size: 9px; padding: 2px 6px; }
-    .card .desc { font-size: 12px; max-height: 56px; }
-    .card .footer { flex-wrap: wrap; gap: 6px; }
-    .card a.link { padding: 7px 12px; font-size: 12px; min-height: 32px; }
+    /* meta: sólo m² y amb visibles */
+    .card .meta { gap: 5px; font-size: 12px; }
+    .card .meta .tag { padding: 3px 8px; }
+    .card .meta .tag.hide-mobile { display: none; }
+    /* description y rule ocultas en mobile (la card se mantiene corta) */
+    .card .desc { display: none; }
+    .card hr.rule { display: none; }
+    .card .footer { padding-top: 6px; }
 
-    /* ACTIONS: 4 toggles + agendar en mobile, wrap nice */
-    .actions { gap: 5px; padding-top: 7px; }
+    /* Actions row siempre visible (esencial para el flujo) */
+    .actions { gap: 5px; padding-top: 6px; }
     .actions .check {
-      font-size: 11px; padding: 6px 8px; letter-spacing: .5px;
-      min-height: 32px;
+      font-size: 11px; padding: 6px 8px; letter-spacing: .5px; min-height: 32px;
     }
     .actions .check .box { width: 13px; height: 13px; font-size: 11px; }
     .actions button.schedule, .actions .visit-when {
       font-size: 11px; padding: 6px 10px; min-height: 32px; letter-spacing: 1px;
     }
+    .card a.link { padding: 7px 12px; font-size: 12px; min-height: 32px; }
 
-    /* AGENDA */
-    .agenda-head { padding: 7px 12px; }
-    .agenda-head .titulo { font-size: 12px; letter-spacing: 1.5px; gap: 6px; }
-    .agenda-head .titulo .badge { font-size: 11px; padding: 2px 7px; }
-    .agenda-head button.toggle { font-size: 10px; padding: 3px 8px; }
-    .agenda-body { padding: 8px 10px 10px; }
-    .agenda-list { gap: 8px; }
-    .agenda-list li {
-      grid-template-columns: 1fr;
-      gap: 4px; padding: 8px;
+    /* Bottom nav fijo */
+    .bottom-nav {
+      display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 70; background: var(--paper);
+      border-top: 3px solid var(--ink);
+      padding: 6px 6px max(8px, env(safe-area-inset-bottom));
+      gap: 6px;
     }
-    .agenda-list .when { font-size: 12px; }
-    .agenda-list .where { font-size: 14px; line-height: 1.3; word-break: break-word; }
+    .bottom-nav button {
+      flex: 1; min-height: 48px;
+      background: var(--paper); color: var(--ink);
+      border: 2px solid var(--ink); border-radius: 0;
+      font-family: "Playfair Display", Georgia, serif;
+      font-weight: 900; font-size: 12px;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      box-shadow: 2px 2px 0 var(--ink);
+      cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; padding: 4px 6px;
+    }
+    .bottom-nav button .ico { font-size: 18px; line-height: 1; }
+    .bottom-nav button.active { background: var(--ink); color: var(--paper); }
+    .bottom-nav button .badge {
+      display: inline-block; min-width: 18px; height: 18px;
+      background: var(--tomato); color: #fffaea;
+      font-size: 11px; line-height: 18px; padding: 0 5px;
+      margin-left: 4px; vertical-align: middle;
+    }
+
+    /* AGENDA en mobile: igual que antes pero sin la línea de papel rayado dentro del drawer */
+    .agenda-head .titulo { font-size: 13px; letter-spacing: 1.5px; }
+    .agenda-list li { grid-template-columns: 1fr; gap: 4px; padding: 8px; }
+    .agenda-list .where { word-break: break-word; }
     .agenda-list a, .agenda-list button {
-      justify-self: stretch; text-align: center; padding: 7px; font-size: 11px;
+      justify-self: stretch; text-align: center; padding: 7px;
     }
 
-    /* DIALOGS */
-    dialog#schedule-dialog, dialog#sync-dialog {
-      width: 94%; max-width: 94%;
-      box-shadow: 4px 4px 0 var(--tomato);
+    /* Filtros tap-friendly */
+    .filter input[type="text"], .filter input[type="number"], .filter select {
+      padding: 10px; font-size: 14px;
     }
-    .dlg-head { padding: 9px 13px; font-size: 13px; letter-spacing: 1.5px; }
-    .dlg-body { padding: 13px; gap: 9px; }
-    .dlg-body label { font-size: 11px; }
+    .chip { padding: 6px 11px; font-size: 12px; min-height: 30px; }
+
+    /* Dialogs grandes */
+    dialog#schedule-dialog, dialog#sync-dialog { width: 94%; max-width: 94%; }
     .dlg-body input, .dlg-body textarea { font-size: 14px; padding: 9px; }
     .dlg-actions { flex-wrap: wrap; gap: 6px; }
-    .dlg-actions button { padding: 8px 11px; font-size: 11px; min-height: 36px; flex: 1; }
-
-    /* INPUTS de filtros: alto cómodo para tap */
-    .filter input[type="text"], .filter input[type="number"], .filter select {
-      padding: 9px 10px; font-size: 14px;
-    }
-    .filter label { font-size: 11px; }
-    .chip { padding: 6px 11px; font-size: 12px; min-height: 30px; box-shadow: 2px 2px 0 var(--ink); }
-    button.reset { padding: 11px; min-height: 44px; font-size: 11px; }
-
-    .stats { padding: 9px 11px; font-size: 12px; }
+    .dlg-actions button { padding: 9px 12px; font-size: 11px; min-height: 36px; flex: 1; }
   }
 
-  /* ===== Phones angostos (≤380px): aún más compacto ===== */
+  /* En desktop, bottom-nav y drawer-close NO aparecen */
+  .bottom-nav, .drawer-close, .drawer-backdrop { display: none; }
+
+  /* Re-mostrar bottom-nav cuando el viewport es mobile */
+  @media (max-width: 900px) {
+    .bottom-nav { display: flex; }
+    .drawer-close { display: block; }
+    .drawer-backdrop { display: block; }
+  }
+
+  /* Phones muy angostos (≤380px): logo más chico */
   @media (max-width: 380px) {
     .masthead h1 { font-size: 20px; letter-spacing: 1px; }
-    .masthead .ribbon { display: none; }
     .card .price { font-size: 20px; }
     .actions .check { font-size: 10px; padding: 6px 7px; }
+    .bottom-nav button { font-size: 10px; letter-spacing: 1px; }
+    .bottom-nav button .ico { font-size: 16px; }
   }
 
   /* ------------------- USER STATE: contacted / seen / agenda ------------------ */
@@ -596,8 +637,11 @@
     <button class="sync-btn" id="sync-btn" title="Sincronizar entre dispositivos">⟲ Sync</button>
   </div>
 </header>
+<div class="drawer-backdrop" id="drawer-backdrop"></div>
+
 <div class="layout">
   <aside>
+    <button class="drawer-close" id="filters-close" aria-label="Cerrar filtros">✕</button>
     <h2>Búsqueda</h2>
     <div class="filter">
       <label>Texto (dirección, descripción)</label>
@@ -681,6 +725,7 @@
 
   <main>
     <div class="agenda" id="agenda">
+      <button class="drawer-close" id="agenda-close" aria-label="Cerrar agenda">✕</button>
       <div class="agenda-head">
         <div class="titulo">📅 Agenda de visitas <span class="badge" id="agenda-count">0</span></div>
         <button class="toggle" id="agenda-toggle">Ocultar</button>
@@ -708,6 +753,21 @@
     <div class="empty" id="empty" style="display:none">No hay listings con esos filtros.</div>
   </main>
 </div>
+
+<nav class="bottom-nav" id="bottom-nav" aria-label="Navegación">
+  <button data-nav="list" class="active" aria-label="Listado">
+    <span class="ico">📋</span>
+    <span>Lista <span class="badge" id="nav-list-count">0</span></span>
+  </button>
+  <button data-nav="filters" aria-label="Filtros">
+    <span class="ico">🔍</span>
+    <span>Filtros <span class="badge" id="nav-filters-count" hidden>0</span></span>
+  </button>
+  <button data-nav="agenda" aria-label="Agenda">
+    <span class="ico">📅</span>
+    <span>Agenda <span class="badge" id="nav-agenda-count" hidden>0</span></span>
+  </button>
+</nav>
 
 <dialog id="sync-dialog">
   <div class="dlg-head">⟲ Sincronización</div>
@@ -890,16 +950,21 @@ function cardHTML(l) {
   const isNew = l.first_seen === state.todayStr;
   const u = userOf(l.listing_id);
   const expensas = l.expensas_ars ? `<span class="exp">+ ${fmtArs(l.expensas_ars)} expensas</span>` : "";
-  const tags = [
+  // Tags primarios (siempre visibles): m² y amb
+  // Tags secundarios (sólo desktop, ocultos en mobile vía .hide-mobile)
+  const primaryTags = [
     l.m2 ? `${l.m2} m²` : null,
     l.ambientes ? `${l.ambientes} amb` : null,
+  ].filter(Boolean).map(t => `<span class="tag">${t}</span>`).join("");
+  const secondaryTags = [
     l.dormitorios ? `${l.dormitorios} dorm` : null,
     l.banos ? `${l.banos} baño${l.banos > 1 ? 's' : ''}` : null,
     l.antiguedad || null,
     l.orientacion || null,
     l.orientacion_cardinal ? `🧭 ${l.orientacion_cardinal}` : null,
     l.m2 && l.price_usd ? `${Math.round(l.price_usd / l.m2).toLocaleString("es-AR")} USD/m²` : null,
-  ].filter(Boolean).map(t => `<span class="tag">${t}</span>`).join("");
+  ].filter(Boolean).map(t => `<span class="tag hide-mobile">${t}</span>`).join("");
+  const tags = primaryTags + secondaryTags;
 
   return `
     <div class="card">
@@ -980,6 +1045,7 @@ function render() {
       : `★ ${state.data.length} avisos · ${state.generated_at} ★`;
   }
   renderAgenda();
+  updateNavCounts(sorted.length, getScheduledListings().length, countActiveFilters());
 }
 
 // ----------------------------- SYNC (Gist) ----------------------------------
@@ -1280,7 +1346,7 @@ function bindActions() {
     render();
   });
 
-  // Agenda toggle
+  // Agenda toggle (sólo desktop — en mobile la agenda es un drawer)
   $("#agenda-toggle").addEventListener("click", () => {
     const body = $("#agenda-body");
     const btn = $("#agenda-toggle");
@@ -1288,6 +1354,72 @@ function bindActions() {
     body.style.display = hidden ? "block" : "none";
     btn.textContent = hidden ? "Ocultar" : "Mostrar";
   });
+
+  bindBottomNav();
+}
+
+// ----------------------------- BOTTOM NAV / DRAWERS --------------------------
+function setView(view) {
+  // view ∈ {"list", "filters", "agenda"}
+  document.body.classList.remove("drawer-filters", "drawer-agenda");
+  if (view === "filters") document.body.classList.add("drawer-filters");
+  if (view === "agenda")  document.body.classList.add("drawer-agenda");
+  document.querySelectorAll(".bottom-nav button").forEach(b => {
+    b.classList.toggle("active",
+      view === "list" ? b.dataset.nav === "list" : b.dataset.nav === view);
+  });
+}
+
+function bindBottomNav() {
+  // Tabs
+  document.querySelectorAll(".bottom-nav button").forEach(btn => {
+    btn.addEventListener("click", () => setView(btn.dataset.nav));
+  });
+  // Close buttons (X) en cada drawer
+  $("#filters-close").addEventListener("click", () => setView("list"));
+  $("#agenda-close").addEventListener("click", () => setView("list"));
+  // Backdrop oscuro cierra el drawer activo
+  $("#drawer-backdrop").addEventListener("click", () => setView("list"));
+  // ESC también cierra
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") setView("list");
+  });
+}
+
+function updateNavCounts(visibleCount, scheduledCount, activeFiltersCount) {
+  const elList = $("#nav-list-count");
+  const elFilt = $("#nav-filters-count");
+  const elAg   = $("#nav-agenda-count");
+  if (elList) elList.textContent = visibleCount.toLocaleString("es-AR");
+  if (elFilt) {
+    if (activeFiltersCount > 0) { elFilt.hidden = false; elFilt.textContent = activeFiltersCount; }
+    else elFilt.hidden = true;
+  }
+  if (elAg) {
+    if (scheduledCount > 0) { elAg.hidden = false; elAg.textContent = scheduledCount; }
+    else elAg.hidden = true;
+  }
+}
+
+function countActiveFilters() {
+  const f = state.filters;
+  let n = 0;
+  if (f.text) n++;
+  if (f.pmin || f.pmax) n++;
+  if (f.mmin || f.mmax) n++;
+  if (f.amin !== null || f.amax !== null) n++;
+  if (f.barrios.size) n++;
+  if (f.sources.size) n++;
+  if (f.orient.size) n++;
+  if (f.amb.size) n++;
+  if (f.banos.size) n++;
+  if (f.cardinal.size) n++;
+  if (f.onlyNew) n++;
+  if (f.uncontacted) n++;
+  if (f.unseen) n++;
+  if (f.scheduled) n++;
+  if (f.starred) n++;
+  return n;
 }
 
 function buildChips(containerSel, values, filterKey) {
