@@ -294,6 +294,68 @@
     .masthead .ribbon { display: none; }
   }
 
+  /* ----------- mobile (≤640px): pulir todo lo táctil ----------- */
+  @media (max-width: 640px) {
+    body { font-size: 15px; }
+
+    header { padding: 12px 14px 10px; }
+    .masthead { gap: 10px; flex-wrap: wrap; }
+    .masthead .starburst { width: 22px; height: 22px; }
+    .masthead h1 { font-size: 22px; letter-spacing: 1.5px; }
+    .masthead .tag { font-size: 13px; padding-left: 8px; flex-basis: 100%; order: 5; border-left: 0; margin-left: 0; }
+    .sync-btn { padding: 5px 10px; font-size: 11px; box-shadow: 2px 2px 0 var(--teal); }
+
+    main { padding: 12px 12px 24px; }
+    aside { padding: 14px 14px 18px; }
+
+    .toolbar { gap: 8px; padding-bottom: 8px; margin-bottom: 12px; }
+    .toolbar .count { font-size: 13px; }
+    .toolbar select { font-size: 12px; padding: 6px 8px; }
+
+    /* 1 columna en celular */
+    .grid { grid-template-columns: 1fr; gap: 12px; }
+
+    .card { padding: 12px 14px 10px; box-shadow: 4px 4px 0 var(--ink); }
+    .card:hover { transform: none; box-shadow: 4px 4px 0 var(--ink); }
+    .card .price { font-size: 22px; }
+    .card .addr { font-size: 16px; }
+    .card .barrio { font-size: 12px; letter-spacing: 1px; }
+    .card .meta { gap: 5px; font-size: 12px; }
+    .card .meta .tag { padding: 3px 7px; }
+
+    .actions { gap: 5px; padding-top: 6px; }
+    .actions .check { font-size: 11px; padding: 6px 9px; letter-spacing: .8px; min-height: 30px; }
+    .actions .check .box { width: 13px; height: 13px; font-size: 11px; }
+    .actions button.schedule, .actions .visit-when { font-size: 11px; padding: 6px 10px; min-height: 30px; }
+
+    .card a.link { padding: 7px 12px; font-size: 12px; min-height: 32px; }
+    button.reset { padding: 11px; min-height: 44px; }
+
+    /* Agenda en celular: stackear cada item */
+    .agenda-head .titulo { font-size: 13px; letter-spacing: 1.5px; gap: 6px; }
+    .agenda-body { padding: 8px 10px 10px; }
+    .agenda-list li {
+      grid-template-columns: 1fr;
+      gap: 6px; padding: 8px;
+    }
+    .agenda-list .when { font-size: 13px; }
+    .agenda-list .where { font-size: 14px; }
+    .agenda-list a, .agenda-list button { justify-self: stretch; text-align: center; padding: 6px; }
+
+    /* Dialog full-screen-ish en mobile */
+    dialog#schedule-dialog, dialog#sync-dialog { width: 96%; max-width: 96%; }
+    .dlg-head { padding: 10px 14px; font-size: 14px; }
+    .dlg-body { padding: 14px; gap: 9px; }
+    .dlg-body input, .dlg-body textarea { font-size: 14px; padding: 10px; }
+    .dlg-actions button { padding: 9px 12px; font-size: 11px; min-height: 38px; }
+
+    /* Filtros: input más alto para tap fácil */
+    .filter input[type="text"], .filter input[type="number"], .filter select {
+      padding: 10px; font-size: 14px;
+    }
+    .chip { padding: 7px 11px; font-size: 12px; min-height: 30px; }
+  }
+
   /* ------------------- USER STATE: contacted / seen / agenda ------------------ */
   .actions {
     display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
