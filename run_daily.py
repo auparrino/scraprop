@@ -164,7 +164,11 @@ def _export_viewer_data(store, today: str) -> Path:
             "last_seen": r["last_seen"],
             "times_seen": r["times_seen"],
         })
-    payload = {"generated_at": today, "listings": listings}
+    payload = {
+        "generated_at": today,
+        "generated_at_time": datetime.now().strftime("%H:%M"),
+        "listings": listings,
+    }
     raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     out = VIEWER_DIR / "data.json"
     out.write_text(raw, encoding="utf-8")
