@@ -1,16 +1,32 @@
 name: scrape-hourly
 
 on:
-  # Estrategia: agendar cada 15 min entre 10:00-22:45 UTC (≈7-19 ART) y dejar
-  # que el primer step decida si hay que scrapear o salir. Como GitHub Actions
-  # droppea cron-triggers de manera errática (más en slots saturados), tener
-  # ~52 intentos/día garantiza que igual entren ~9 corridas reales aunque la
-  # mitad se caigan. El guard "Skip si run reciente" abajo cancela el resto del
-  # job sin gastar proxy si la rama `data` se actualizó hace <80 min, así que
-  # la cuota de ScraperAPI queda igual a 9 runs/día.
+  # Estrategia multi-trigger para sobrevivir a la baja confiabilidad del cron
+  # de GitHub Actions:
+  #   1) schedule cada 10 min entre 10:00-22:50 UTC (≈7-19 ART, ~78 intentos/día)
+  #   2) push a main: cualquier commit dispara un run (insurance manual)
+  #   3) workflow_dispatch: trigger desde la UI (con override 'force')
+  #   4) repository_dispatch: trigger via API externa (cron-job.org si se configura)
+  # El step "Skip si run reciente" abajo cancela el resto del job sin gastar
+  # proxy si la rama `data` se actualizó hace <60 min, así que la cuota de
+  # ScraperAPI sigue siendo ~10 runs reales/día sin importar cuántos triggers
+  # entren.
   schedule:
-    - cron: "*/15 10-22 * * *"
-  workflow_dispatch: {}     # permite disparar manualmente desde la UI
+    - cron: "*/10 10-22 * * *"
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'viewer/**'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Forzar run aunque haya habido uno reciente'
+        type: boolean
+        default: true
+  repository_dispatch:
+    types: [scrape]
 
 permissions:
   contents: write           # para commitear el estado a la rama "data"
@@ -42,12 +58,12 @@ jobs:
           path: state
 
       - name: Skip si hubo un run reciente
-        # En triggers schedule, salimos temprano si el último commit de la rama
-        # `data` es de hace <80 min — ya hubo una corrida en este slot lógico.
-        # Para workflow_dispatch (manual) y repository_dispatch (externo) NO
-        # skippeamos: el usuario quiere correr ya.
+        # Solo skippeamos en triggers schedule y push: queremos evitar runs
+        # redundantes (proxy quota). En workflow_dispatch (manual) y
+        # repository_dispatch (externo) NO skippeamos: el caller quiere correr.
+        # workflow_dispatch.inputs.force=false permite skippear igual si querés.
         id: should_run
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.force == false) }}
         run: |
           set -e
           if [ -d state ]; then
@@ -57,9 +73,9 @@ jobs:
             DELTA=$(( NOW - LAST ))
             MINS=$(( DELTA / 60 ))
             echo "Último commit en data: hace $MINS min (delta=$DELTA s)"
-            if [ "$DELTA" -lt 4800 ]; then
+            if [ "$DELTA" -lt 3600 ]; then
               echo "skip=true" >> "$GITHUB_OUTPUT"
-              echo "::notice::Skipping — último run fue hace $MINS min (<80)"
+              echo "::notice::Skipping — último run fue hace $MINS min (<60)"
             else
               echo "skip=false" >> "$GITHUB_OUTPUT"
             fi
