@@ -1,16 +1,15 @@
 name: scrape-hourly
 
 on:
-  # Cron en UTC. ART = UTC-3, entonces 7:00-20:00 ART = 10:00-23:00 UTC.
-  # Cadencia cada 1:30h durante ~7:00-19:00 ART (9 corridas/día):
-  #   ART  ≈ 7:17 8:47 10:17 11:47 13:17 14:47 16:17 17:47 19:17
-  #   UTC  ≈ 10:17 11:47 13:17 14:47 16:17 17:47 19:17 20:47 22:17
-  # Usamos minutos :17 y :47 (en vez de :00 y :30) para evitar los slots
-  # saturados de GitHub Actions, que demoran o descartan crons en horas exactas.
-  # Necesitamos dos crons porque cron estándar no soporta intervalos de 90 min.
+  # Estrategia: agendar cada 15 min entre 10:00-22:45 UTC (≈7-19 ART) y dejar
+  # que el primer step decida si hay que scrapear o salir. Como GitHub Actions
+  # droppea cron-triggers de manera errática (más en slots saturados), tener
+  # ~52 intentos/día garantiza que igual entren ~9 corridas reales aunque la
+  # mitad se caigan. El guard "Skip si run reciente" abajo cancela el resto del
+  # job sin gastar proxy si la rama `data` se actualizó hace <80 min, así que
+  # la cuota de ScraperAPI queda igual a 9 runs/día.
   schedule:
-    - cron: "17 10,13,16,19,22 * * *"   # :17 de horas pares de la cadencia
-    - cron: "47 11,14,17,20 * * *"      # :47 de las intermedias
+    - cron: "*/15 10-22 * * *"
   workflow_dispatch: {}     # permite disparar manualmente desde la UI
 
 permissions:
@@ -26,6 +25,8 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      skip: ${{ steps.should_run.outputs.skip }}
 
     steps:
       - name: Checkout código (main)
@@ -40,7 +41,36 @@ jobs:
           ref: data
           path: state
 
+      - name: Skip si hubo un run reciente
+        # En triggers schedule, salimos temprano si el último commit de la rama
+        # `data` es de hace <80 min — ya hubo una corrida en este slot lógico.
+        # Para workflow_dispatch (manual) y repository_dispatch (externo) NO
+        # skippeamos: el usuario quiere correr ya.
+        id: should_run
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          set -e
+          if [ -d state ]; then
+            cd state
+            LAST=$(git log -1 --format=%ct 2>/dev/null || echo 0)
+            NOW=$(date +%s)
+            DELTA=$(( NOW - LAST ))
+            MINS=$(( DELTA / 60 ))
+            echo "Último commit en data: hace $MINS min (delta=$DELTA s)"
+            if [ "$DELTA" -lt 4800 ]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "::notice::Skipping — último run fue hace $MINS min (<80)"
+            else
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "No hay rama data todavía → corremos"
+          fi
+        shell: bash
+
       - name: Restaurar DB y reportes previos al working tree
+        if: ${{ steps.should_run.outputs.skip != 'true' }}
         run: |
           set -e
           if [ -d state ]; then
@@ -53,26 +83,30 @@ jobs:
         shell: bash
 
       - name: Set up Python
+        if: ${{ steps.should_run.outputs.skip != 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
 
       - name: Install deps
+        if: ${{ steps.should_run.outputs.skip != 'true' }}
         working-directory: code
         run: pip install -r requirements.txt
 
       - name: Run scraper
+        if: ${{ steps.should_run.outputs.skip != 'true' }}
         working-directory: code
         env:
           TZ: America/Argentina/Buenos_Aires
           # Si el secret está configurado, los scrapers rutean por ScraperAPI con IP residencial AR.
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
-        # Cuota del proxy: 3 págs × (3+4 amb) × 2 fuentes × 9 corridas/día ≈ 162 reqs/día
-        # → ~4.860/mes (97% del free tier de 5K — queda al borde, aceptable).
+        # Cuota del proxy: 3 págs × (3+4 amb) × 2 fuentes × 9 corridas reales/día ≈ 162 reqs/día
+        # → ~4.860/mes (97% del free tier de 5K). Los slots que skippean no llegan acá.
         run: python run_daily.py --max-pages 3
 
       - name: Persistir estado a la rama "data"
+        if: ${{ steps.should_run.outputs.skip != 'true' }}
         run: |
           set -e
           # Preparamos un repo limpio en /tmp/data con sólo los artefactos.
@@ -92,12 +126,15 @@ jobs:
         shell: bash
 
       - name: Empaquetar viewer para Pages
+        if: ${{ steps.should_run.outputs.skip != 'true' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: code/viewer
 
   deploy-pages:
     needs: scrape
+    # Si scrape skippeó (no hay artifact nuevo), no intentamos deployar Pages.
+    if: ${{ needs.scrape.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
