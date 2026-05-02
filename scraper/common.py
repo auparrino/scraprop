@@ -27,6 +27,7 @@ TARGET_AMBIENTES = (3, 4)        # ahora aceptamos 3 o 4 ambientes
 PRICE_USD_MIN = 135_000
 PRICE_USD_MAX = 170_000
 M2_MIN = 60                      # superficie mínima en m²
+ANTIGUEDAD_MAX_YEARS = 25        # tope de antigüedad (años)
 
 
 @dataclass
@@ -138,6 +139,23 @@ def detect_antiguedad(text: str) -> Optional[str]:
     return val
 
 
+_ANTIG_YEARS_RE = re.compile(r"(\d+)\s*a[nñ]os?", re.IGNORECASE)
+_ANTIG_NEW_RE = re.compile(r"(estrenar|pozo|construcci)", re.IGNORECASE)
+
+
+def antiguedad_years(antig: Optional[str]) -> Optional[int]:
+    """Convert antiguedad string to integer years. 'a estrenar' / 'en pozo' /
+    'en construcción' → 0. 'X años' → X. None if unknown."""
+    if not antig:
+        return None
+    if _ANTIG_NEW_RE.search(antig):
+        return 0
+    m = _ANTIG_YEARS_RE.search(antig)
+    if m:
+        return int(m.group(1))
+    return None
+
+
 _ORIENT_TOKENS = (
     ("contrafrente", "contrafrente"),
     ("contra frente", "contrafrente"),
@@ -201,7 +219,7 @@ def detect_barrio(text: str) -> str:
 
 def matches_filters(l: Listing) -> bool:
     """Final guard: enforce ambientes en TARGET_AMBIENTES, barrios target, banda USD,
-    superficie mínima."""
+    superficie mínima, antigüedad máxima."""
     target = TARGET_AMBIENTES if isinstance(TARGET_AMBIENTES, tuple) else (TARGET_AMBIENTES,)
     if l.ambientes is not None and l.ambientes not in target:
         return False
@@ -212,5 +230,8 @@ def matches_filters(l: Listing) -> bool:
     if l.barrio not in TARGET_BARRIOS:
         return False
     if l.m2 is not None and l.m2 < M2_MIN:
+        return False
+    years = antiguedad_years(l.antiguedad)
+    if years is not None and years > ANTIGUEDAD_MAX_YEARS:
         return False
     return True
