@@ -22,8 +22,8 @@ BASE = "https://www.zonaprop.com.ar"
 
 
 def _list_url(ambientes: int, page: int) -> str:
-    """Caballito + Villa Crespo, X amb, banda USD, sorted newest first."""
-    base = (f"{BASE}/departamentos-venta-caballito-villa-crespo-"
+    """Caballito + Villa Crespo + Almagro, X amb, banda USD, sorted newest first."""
+    base = (f"{BASE}/departamentos-venta-caballito-villa-crespo-almagro-"
             f"{ambientes}-ambientes-mas-{PRICE_USD_MIN}-menos-{PRICE_USD_MAX}-dolar")
     sort = "-orden-publicado-descendente"
     if page <= 1:

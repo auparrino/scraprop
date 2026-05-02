@@ -153,7 +153,7 @@ def _fetch(url: str, session, retries: int = 4) -> str | None:
 
 
 def scrape(*, max_pages_per_barrio: int = 50,
-           barrios: tuple = ("caballito", "villa-crespo"),
+           barrios: tuple = ("caballito", "villa-crespo", "almagro"),
            delay: float = 0.6) -> Iterator[Listing]:
     """Yield Listings from argenprop matching the configured filters."""
     session = cffi_requests.Session()

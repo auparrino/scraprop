@@ -22,12 +22,17 @@ def proxy_wrap(url: str) -> str:
 
 
 # Filter constants — single source of truth
-TARGET_BARRIOS = ("caballito", "villa crespo")
+TARGET_BARRIOS = ("caballito", "villa crespo", "almagro")
 TARGET_AMBIENTES = (3, 4)        # ahora aceptamos 3 o 4 ambientes
 PRICE_USD_MIN = 135_000
 PRICE_USD_MAX = 170_000
 M2_MIN = 60                      # superficie mínima en m²
 ANTIGUEDAD_MAX_YEARS = 25        # tope de antigüedad (años)
+
+# Almagro tiene una división informal Norte/Sur por Av. Rivadavia. Las webs no
+# discriminan, así que sólo aceptamos listings que se identifiquen explícitamente
+# como "almagro norte" o que NO se identifiquen como "almagro sur" (benefit of doubt).
+ALMAGRO_NORTE_ONLY = True
 
 
 @dataclass
@@ -214,12 +219,26 @@ def detect_barrio(text: str) -> str:
         return "villa crespo"
     if "caballito" in t:
         return "caballito"
+    if "almagro" in t:
+        return "almagro"
     return ""
+
+
+def is_almagro_norte(l_barrio: str, blob: str) -> bool:
+    """Heuristic: keep listing if not clearly tagged as Almagro Sur.
+    Listings that explicitly mention 'almagro sur' are excluded. Everything
+    else (including silent ones, since the sites don't tag it) passes."""
+    if l_barrio != "almagro":
+        return True
+    t = normalize_text(blob)
+    if "almagro sur" in t:
+        return False
+    return True
 
 
 def matches_filters(l: Listing) -> bool:
     """Final guard: enforce ambientes en TARGET_AMBIENTES, barrios target, banda USD,
-    superficie mínima, antigüedad máxima."""
+    superficie mínima, antigüedad máxima, sub-zona Almagro Norte."""
     target = TARGET_AMBIENTES if isinstance(TARGET_AMBIENTES, tuple) else (TARGET_AMBIENTES,)
     if l.ambientes is not None and l.ambientes not in target:
         return False
@@ -233,5 +252,7 @@ def matches_filters(l: Listing) -> bool:
         return False
     years = antiguedad_years(l.antiguedad)
     if years is not None and years > ANTIGUEDAD_MAX_YEARS:
+        return False
+    if ALMAGRO_NORTE_ONLY and not is_almagro_norte(l.barrio, l.raw_text or l.description or ""):
         return False
     return True
