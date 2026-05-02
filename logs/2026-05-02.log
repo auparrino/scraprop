@@ -1,0 +1,24 @@
+2026-05-02 10:30:37,366 INFO run: === Scraping argenprop ===
+2026-05-02 10:30:40,629 INFO argenprop: argenprop caballito 3amb page 1 -> 20 cards
+2026-05-02 10:30:47,077 INFO argenprop: argenprop caballito 3amb page 2 -> 20 cards
+2026-05-02 10:30:53,347 INFO argenprop: argenprop caballito 3amb page 3 -> 20 cards
+2026-05-02 10:30:59,908 INFO argenprop: argenprop caballito 4amb page 1 -> 20 cards
+2026-05-02 10:31:03,667 INFO argenprop: argenprop caballito 4amb page 2 -> 20 cards
+2026-05-02 10:31:07,268 INFO argenprop: argenprop caballito 4amb page 3 -> 20 cards
+2026-05-02 10:31:11,769 INFO argenprop: argenprop villa-crespo 3amb page 1 -> 20 cards
+2026-05-02 10:31:16,151 INFO argenprop: argenprop villa-crespo 3amb page 2 -> 20 cards
+2026-05-02 10:31:19,778 INFO argenprop: argenprop villa-crespo 3amb page 3 -> 20 cards
+2026-05-02 10:31:30,195 INFO argenprop: argenprop villa-crespo 4amb page 1 -> 20 cards
+2026-05-02 10:31:34,001 INFO argenprop: argenprop villa-crespo 4amb page 2 -> 20 cards
+2026-05-02 10:31:37,499 INFO argenprop: argenprop villa-crespo 4amb page 3 -> 20 cards
+2026-05-02 10:31:38,150 INFO run: === Scraping zonaprop ===
+2026-05-02 10:31:43,565 INFO zonaprop: zonaprop 3amb page 1 -> 30 cards
+2026-05-02 10:31:54,445 INFO zonaprop: zonaprop 3amb page 2 -> 30 cards
+2026-05-02 10:32:02,907 INFO zonaprop: zonaprop 3amb page 3 -> 30 cards
+2026-05-02 10:32:11,511 INFO zonaprop: zonaprop 4amb page 1 -> 30 cards
+2026-05-02 10:32:18,375 INFO zonaprop: zonaprop 4amb page 2 -> 29 cards
+2026-05-02 10:32:24,881 INFO zonaprop: zonaprop 4amb page 3 -> 29 cards
+2026-05-02 10:32:26,294 INFO run: Run summary: {'total_seen': 222, 'new': 2, 'republishes': 1, 'started_at': '2026-05-02T10:30:37', 'finished_at': '2026-05-02T10:32:26'}
+2026-05-02 10:32:26,294 INFO run: Report: /home/runner/work/scraprop/scraprop/code/reports/2026-05-02.md
+2026-05-02 10:32:26,294 INFO run: Report JSON: /home/runner/work/scraprop/scraprop/code/reports/2026-05-02.json
+2026-05-02 10:32:26,311 INFO run: Viewer data: /home/runner/work/scraprop/scraprop/code/viewer/data.json (1197 listings)
